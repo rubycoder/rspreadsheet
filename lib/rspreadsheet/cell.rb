@@ -69,7 +69,7 @@ class Cell < XMLTiedItem
       case 
         when gt == nil then nil
         when gt == Float then xmlnode.attributes['value'].to_f
-        when gt == String then xmlnode.elements.first.andand.content.to_s
+        when gt == String then string_value
         when gt == :boolean then xmlnode.attributes['boolean-value'] == 'true'
         when gt == :datetime then datetime_value
         when gt == :time then time_value
@@ -81,6 +81,15 @@ class Cell < XMLTiedItem
     else
       raise "Unknown cell mode #{amode}"
     end
+  end
+
+  # LibreOffice stores multiple paragraphs in one cell as sibling text:p nodes.
+  # Returning only the first element silently truncated multiline cell values.
+  def string_value
+    paragraphs = xmlnode.children.select { |node| node.element? && node.name == 'p' }
+    return xmlnode.elements.first.andand.content.to_s if paragraphs.empty?
+
+    paragraphs.map(&:content).join("\n")
   end
   
   ## according to http://docs.oasis-open.org/office/v1.2/os/OpenDocument-v1.2-os-part1.html#__RefHeading__1417674_253892949
@@ -310,8 +319,6 @@ class Cell < XMLTiedItem
 end ## Cell
 
 end # module
-
-
 
 
 

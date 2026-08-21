@@ -47,6 +47,13 @@ describe Rspreadsheet::Cell do
     @sheet2.cell(12,1).valuexmlfindall('.//text:a').size.should eq 1
     @sheet2.cell(12,1).valuexmlfindfirst('.//text:a').attributes['href'].should eq 'http://example.org/'
   end
+  it 'joins multiple text paragraphs in a string cell' do
+    cell = @sheet1.cell(1, 1)
+    cell.value = 'first paragraph'
+    cell.xmlnode << Rspreadsheet::Tools.prepare_ns_node('text', 'p', 'second paragraph')
+
+    cell.value.should == "first paragraph\nsecond paragraph"
+  end
   it 'contains good row and col coordinates even after table:number-columns-repeated cells' do
     @cell = @sheet2.cell(13,5)
     @cell.value.should == 'afterrepeated'
