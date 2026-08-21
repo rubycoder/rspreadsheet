@@ -321,6 +321,16 @@ describe Rspreadsheet::Cell do
     @czkcell.value.should == 200.to_d
     @czkcell.format.currency.should == 'CZK'
   end
+  it 'reads and writes boolean values' do
+    @cell = @sheet1.cell('A1')
+    @cell.value = true
+    @cell.type.should eq :boolean
+    @cell.value.should be true
+
+    @cell.value = false
+    @cell.type.should eq :boolean
+    @cell.value.should be false
+  end
   it 'preserves currency format when float is assingned to it' do
     @cell = @sheet2.cell('B23')
     @cell.type.should eq :currency

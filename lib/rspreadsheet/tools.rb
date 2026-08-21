@@ -196,7 +196,7 @@ module Tools
   
   def self.output_to_zip_stream(io,&block)
     if io.kind_of? File or io.kind_of? String
-      Zip::File.open(io, 'br+') do |zip|
+      Zip::File.open(io) do |zip|
         yield zip
       end
     elsif io.kind_of? StringIO # or io.kind_of? IO

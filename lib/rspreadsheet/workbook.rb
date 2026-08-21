@@ -1,5 +1,9 @@
 require 'zip'
-require 'libxml'
+begin
+  require 'libxml'
+rescue LoadError
+  require 'libxml-ruby'
+end
 
 module Rspreadsheet
     
