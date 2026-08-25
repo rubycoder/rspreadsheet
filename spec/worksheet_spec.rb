@@ -58,6 +58,35 @@ describe "check gnumeric testfile" do
 end
 
 describe Rspreadsheet::Worksheet do
+  describe 'sheet protection' do
+    before do
+      @book = Rspreadsheet.new
+      @sheet = @book.create_worksheet('Protected')
+    end
+
+    it 'protects, identifies and unprotects a worksheet' do
+      @sheet.protected?.should be false
+      @sheet.protect(password: 'admin')
+      @sheet.protected?.should be true
+      @sheet.protection_algorithm.should == :sha1
+      @sheet.protected_by?('admin').should be true
+      @sheet.protected_by?('wrong').should be false
+      @sheet.unprotect
+      @sheet.protected?.should be false
+      @sheet.protection_key.should be_nil
+    end
+
+    it 'supports SHA-256 protection keys' do
+      @sheet.protect(password: 'stronger', algorithm: :sha256)
+      @sheet.protection_algorithm.should == :sha256
+      @sheet.protected_by?('stronger').should be true
+    end
+
+    it 'rejects unknown digest algorithms' do
+      expect { @sheet.protect(password: 'x', algorithm: :unknown) }.to raise_error(ArgumentError)
+    end
+  end
+
   describe "newly created" do
     before do
       @book = Rspreadsheet.new
