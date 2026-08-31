@@ -89,7 +89,26 @@ class Cell < XMLTiedItem
     paragraphs = xmlnode.children.select { |node| node.element? && node.name == 'p' }
     return xmlnode.elements.first.andand.content.to_s if paragraphs.empty?
 
-    paragraphs.map(&:content).join("\n")
+    paragraphs.map { |paragraph| odf_text_content(paragraph) }.join("\n")
+  end
+
+  def odf_text_content(node)
+    node.children.map do |child|
+      unless child.element?
+        child.content.to_s
+      else
+        case child.name
+        when 'line-break'
+          "\n"
+        when 'tab'
+          "\t"
+        when 's'
+          ' ' * Tools.get_ns_attribute_value(child, 'text', 'c', 1).to_i
+        else
+          odf_text_content(child)
+        end
+      end
+    end.join
   end
   
   ## according to http://docs.oasis-open.org/office/v1.2/os/OpenDocument-v1.2-os-part1.html#__RefHeading__1417674_253892949
@@ -319,7 +338,6 @@ class Cell < XMLTiedItem
 end ## Cell
 
 end # module
-
 
 
 

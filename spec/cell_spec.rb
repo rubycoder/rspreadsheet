@@ -54,6 +54,21 @@ describe Rspreadsheet::Cell do
 
     cell.value.should == "first paragraph\nsecond paragraph"
   end
+  it 'preserves ODF line breaks, tabs, and repeated spaces inside a paragraph' do
+    cell = @sheet1.cell(1, 1)
+    cell.value = 'first'
+    paragraph = cell.xmlnode.children.find(&:element?)
+    paragraph << Rspreadsheet::Tools.prepare_ns_node('text', 'line-break')
+    paragraph << Rspreadsheet::Tools.prepare_ns_node('text', 'line-break')
+    paragraph << Rspreadsheet::Tools.prepare_ns_node('text', 'span', '* second')
+    paragraph << Rspreadsheet::Tools.prepare_ns_node('text', 'tab')
+    spaces = Rspreadsheet::Tools.prepare_ns_node('text', 's')
+    Rspreadsheet::Tools.set_ns_attribute(spaces, 'text', 'c', '3')
+    paragraph << spaces
+    paragraph << Rspreadsheet::Tools.prepare_ns_node('text', 'span', 'end')
+
+    cell.value.should == "first\n\n* second\t   end"
+  end
   it 'contains good row and col coordinates even after table:number-columns-repeated cells' do
     @cell = @sheet2.cell(13,5)
     @cell.value.should == 'afterrepeated'
