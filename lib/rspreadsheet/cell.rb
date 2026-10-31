@@ -69,7 +69,8 @@ class Cell < XMLTiedItem
       case 
         when gt == nil then nil
         when gt == Float then xmlnode.attributes['value'].to_f
-        when gt == String then xmlnode.elements.first.andand.content.to_s
+        when gt == String then string_value
+        when gt == :boolean then xmlnode.attributes['boolean-value'] == 'true'
         when gt == :datetime then datetime_value
         when gt == :time then time_value
         when gt == :percentage then xmlnode.attributes['value'].to_f
@@ -80,6 +81,34 @@ class Cell < XMLTiedItem
     else
       raise "Unknown cell mode #{amode}"
     end
+  end
+
+  # LibreOffice stores multiple paragraphs in one cell as sibling text:p nodes.
+  # Returning only the first element silently truncated multiline cell values.
+  def string_value
+    paragraphs = xmlnode.children.select { |node| node.element? && node.name == 'p' }
+    return xmlnode.elements.first.andand.content.to_s if paragraphs.empty?
+
+    paragraphs.map { |paragraph| odf_text_content(paragraph) }.join("\n")
+  end
+
+  def odf_text_content(node)
+    node.children.map do |child|
+      unless child.element?
+        child.content.to_s
+      else
+        case child.name
+        when 'line-break'
+          "\n"
+        when 'tab'
+          "\t"
+        when 's'
+          ' ' * Tools.get_ns_attribute_value(child, 'text', 'c', 1).to_i
+        else
+          odf_text_content(child)
+        end
+      end
+    end.join
   end
   
   ## according to http://docs.oasis-open.org/office/v1.2/os/OpenDocument-v1.2-os-part1.html#__RefHeading__1417674_253892949
@@ -139,6 +168,12 @@ class Cell < XMLTiedItem
           remove_all_value_attributes_and_content
           set_type_attribute('string')
           xmlnode << Tools.prepare_ns_node('text','p', avalue.to_s)
+        when gt == :boolean then
+          remove_all_value_attributes_and_content
+          set_type_attribute('boolean')
+          bool_value = avalue ? 'true' : 'false'
+          Tools.set_ns_attribute(xmlnode,'office','boolean-value', bool_value)
+          xmlnode << Tools.prepare_ns_node('text','p', avalue.to_s.upcase)
         when gt == :datetime then 
           remove_all_value_attributes_and_content
           set_type_attribute('date')
@@ -180,6 +215,7 @@ class Cell < XMLTiedItem
     if att = Tools.get_ns_attribute(node, 'office','value') then att.remove! end
     if att = Tools.get_ns_attribute(node, 'office','date-value') then att.remove! end
     if att = Tools.get_ns_attribute(node, 'office','time-value') then att.remove! end
+    if att = Tools.get_ns_attribute(node, 'office','boolean-value') then att.remove! end
     if att = Tools.get_ns_attribute(node, 'table','formula') then att.remove! end
     node.content=''
   end
@@ -199,6 +235,7 @@ class Cell < XMLTiedItem
       when gct == :percentage then :percentage
       when gct == :unassigned then :unassigned
       when gct == :currency then :currency
+      when gct == :boolean then :boolean
       when gct == NilClass then :empty
       when gct == nil then :unknown
       else :unknown
@@ -211,6 +248,7 @@ class Cell < XMLTiedItem
       when Time then :time
       when Date, DateTime then :datetime
       when String,nil then nil
+      when TrueClass, FalseClass then :boolean
       else nil
     end
     result = valueguess
@@ -226,6 +264,7 @@ class Cell < XMLTiedItem
         when 'percentage' then :percentage
         when 'N/A' then :unassigned
         when 'currency' then :currency
+        when 'boolean' then :boolean
         else 
           if xmlnode.elements.size == 0
             nil
@@ -299,10 +338,6 @@ class Cell < XMLTiedItem
 end ## Cell
 
 end # module
-
-
-
-
 
 
 

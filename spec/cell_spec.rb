@@ -47,6 +47,28 @@ describe Rspreadsheet::Cell do
     @sheet2.cell(12,1).valuexmlfindall('.//text:a').size.should eq 1
     @sheet2.cell(12,1).valuexmlfindfirst('.//text:a').attributes['href'].should eq 'http://example.org/'
   end
+  it 'joins multiple text paragraphs in a string cell' do
+    cell = @sheet1.cell(1, 1)
+    cell.value = 'first paragraph'
+    cell.xmlnode << Rspreadsheet::Tools.prepare_ns_node('text', 'p', 'second paragraph')
+
+    cell.value.should == "first paragraph\nsecond paragraph"
+  end
+  it 'preserves ODF line breaks, tabs, and repeated spaces inside a paragraph' do
+    cell = @sheet1.cell(1, 1)
+    cell.value = 'first'
+    paragraph = cell.xmlnode.children.find(&:element?)
+    paragraph << Rspreadsheet::Tools.prepare_ns_node('text', 'line-break')
+    paragraph << Rspreadsheet::Tools.prepare_ns_node('text', 'line-break')
+    paragraph << Rspreadsheet::Tools.prepare_ns_node('text', 'span', '* second')
+    paragraph << Rspreadsheet::Tools.prepare_ns_node('text', 'tab')
+    spaces = Rspreadsheet::Tools.prepare_ns_node('text', 's')
+    Rspreadsheet::Tools.set_ns_attribute(spaces, 'text', 'c', '3')
+    paragraph << spaces
+    paragraph << Rspreadsheet::Tools.prepare_ns_node('text', 'span', 'end')
+
+    cell.value.should == "first\n\n* second\t   end"
+  end
   it 'contains good row and col coordinates even after table:number-columns-repeated cells' do
     @cell = @sheet2.cell(13,5)
     @cell.value.should == 'afterrepeated'
@@ -320,6 +342,16 @@ describe Rspreadsheet::Cell do
     @czkcell.value = 200.to_d
     @czkcell.value.should == 200.to_d
     @czkcell.format.currency.should == 'CZK'
+  end
+  it 'reads and writes boolean values' do
+    @cell = @sheet1.cell('A1')
+    @cell.value = true
+    @cell.type.should eq :boolean
+    @cell.value.should be true
+
+    @cell.value = false
+    @cell.type.should eq :boolean
+    @cell.value.should be false
   end
   it 'preserves currency format when float is assingned to it' do
     @cell = @sheet2.cell('B23')

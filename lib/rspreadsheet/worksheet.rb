@@ -3,6 +3,8 @@ require 'rspreadsheet/column'
 require 'rspreadsheet/image'
 require 'rspreadsheet/tools'
 require 'helpers/class_extensions'
+require 'base64'
+require 'digest'
 # require 'forwardable'
 
 module Rspreadsheet
@@ -38,6 +40,53 @@ class Worksheet
 
   def name=(value)
     Tools.set_ns_attribute(@xmlnode,'table','name', value)
+  end
+
+  PROTECTION_ALGORITHMS = {
+    sha1: ['http://www.w3.org/2000/09/xmldsig#sha1', Digest::SHA1],
+    sha256: ['http://www.w3.org/2001/04/xmlenc#sha256', Digest::SHA256]
+  }.freeze
+
+  # ODF sheet protection is an editing safeguard, not encryption. The
+  # protection key is the Base64 encoded digest of the UTF-8 password.
+  def protect(password:, algorithm: :sha1)
+    algorithm_uri, digest_class = PROTECTION_ALGORITHMS.fetch(algorithm.to_sym) do
+      raise ArgumentError, "Unsupported worksheet protection algorithm: #{algorithm}"
+    end
+    password = password.to_s.encode(Encoding::UTF_8)
+    Tools.set_ns_attribute(@xmlnode, 'table', 'protected', 'true')
+    Tools.set_ns_attribute(@xmlnode, 'table', 'protection-key', Base64.strict_encode64(digest_class.digest(password)))
+    Tools.set_ns_attribute(@xmlnode, 'table', 'protection-key-digest-algorithm', algorithm_uri)
+    self
+  end
+
+  def protected?
+    Tools.get_ns_attribute_value(@xmlnode, 'table', 'protected', 'false') == 'true'
+  end
+
+  def protection_key
+    Tools.get_ns_attribute_value(@xmlnode, 'table', 'protection-key', nil)
+  end
+
+  def protection_algorithm
+    uri = Tools.get_ns_attribute_value(@xmlnode, 'table', 'protection-key-digest-algorithm', nil)
+    PROTECTION_ALGORITHMS.find { |_name, definition| definition.first == uri }&.first
+  end
+
+  def protected_by?(password)
+    algorithm = protection_algorithm
+    return false unless protected? && algorithm
+
+    _uri, digest_class = PROTECTION_ALGORITHMS.fetch(algorithm)
+    expected = Base64.strict_encode64(digest_class.digest(password.to_s.encode(Encoding::UTF_8)))
+    protection_key == expected
+  end
+
+  def unprotect
+    Tools.remove_ns_attribute(@xmlnode, 'table', 'protected')
+    Tools.remove_ns_attribute(@xmlnode, 'table', 'protection-key')
+    Tools.remove_ns_attribute(@xmlnode, 'table', 'protection-key-digest-algorithm')
+    self
   end
 
   def first_unused_row_index

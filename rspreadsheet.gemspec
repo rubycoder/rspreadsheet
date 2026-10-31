@@ -11,10 +11,12 @@ Gem::Specification.new do |spec|
   spec.summary       = 'Manipulating LibreOffice Calc (OpenDocument Spreadsheet) files from Ruby (read / create / modify).'
   spec.description   = 'Manipulating LibreOffice Calc (OpenDocument Spreadsheet) files with Ruby. This gem can create new, read existing files abd modify them. When modyfying files, it tries to change as little as possible, making it as much forward compatible as possible.'
 
-  spec.homepage      = "https://github.com/gorn/rspreadsheet"
+  spec.homepage      = "https://github.com/cosmoBots/rspreadsheet"
   spec.license       = "GPL"
 
-  spec.files         = `git ls-files -z`.split("\x0")
+  spec.files         = Dir.chdir(__dir__) do
+    Dir['{lib,spec}/**/*', '*.md', '*.gemspec', 'COPYING.txt'].select { |path| File.file?(path) }
+  end
   spec.executables   = spec.files.grep(%r{^bin/}) { |f| File.basename(f) }
   spec.test_files    = spec.files.grep(%r{^(test|spec|features)/})
   spec.require_paths = ["lib"]
@@ -30,7 +32,7 @@ Gem::Specification.new do |spec|
   unless package_natively_installed?('ruby-libxml')
     spec.add_runtime_dependency 'libxml-ruby', '>=3.0'   # parsing XML files
   end
-  spec.add_runtime_dependency 'rubyzip', '>=1.3'       # opening zip files
+  spec.add_runtime_dependency 'rubyzip', '>=3.0', '<4' # opening zip files
   spec.add_runtime_dependency 'andand', '>=1.3'
 
   # development dependencies
@@ -58,4 +60,3 @@ Gem::Specification.new do |spec|
 #   spec.add_development_dependency 'equivalent-xml'     # implementing xml diff
 
 end
-

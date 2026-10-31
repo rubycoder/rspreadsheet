@@ -194,9 +194,9 @@ module Tools
     Time.new(StartOfEpoch.year,StartOfEpoch.month,StartOfEpoch.day,h,m,s)
   end
   
-  def self.output_to_zip_stream(io,&block)
+  def self.output_to_zip_stream(io, create: false, &block)
     if io.kind_of? File or io.kind_of? String
-      Zip::File.open(io, 'br+') do |zip|
+      Zip::File.open(io, create: create) do |zip|
         yield zip
       end
     elsif io.kind_of? StringIO # or io.kind_of? IO

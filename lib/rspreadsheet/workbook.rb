@@ -1,5 +1,11 @@
 require 'zip'
-require 'libxml'
+require 'fileutils'
+require 'tempfile'
+begin
+  require 'libxml'
+rescue LoadError
+  require 'libxml-ruby'
+end
 
 module Rspreadsheet
     
@@ -68,25 +74,32 @@ class Workbook
   # @param [String] Optional new filename
   # Saves the worksheet. Optionally you can provide new filename or IO stream to which the file should be saved.
   def save(io=nil)
-    case
-      when @filename.nil? && io.nil?
-        raise 'New file should be named on first save.'
-      when @filename.kind_of?(String) && io.nil?
-        Tools.output_to_zip_stream(@filename) do |input_and_output_zip|                  # open old file
-          update_zip_manifest_and_content_xml(input_and_output_zip,input_and_output_zip) # input and output are identical
-        end
-      when (@filename.kind_of?(String) && (io.kind_of?(String) || io.kind_of?(File)))
-        io = io.path if io.kind_of?(File)                                           # convert file to its filename
-        FileUtils.cp(@filename , io)                                                # copy file externally
-        @filename = io                                                              # remember new name
-        save_to_io(nil)                                                             # continue modyfying file on spot
-      when io.kind_of?(IO) || io.kind_of?(String) || io.kind_of?(StringIO)
-        Tools.output_to_zip_stream(io) do |output_io|                               # open output stream of file
-          write_ods_to_io(output_io)
-        end
-        io.rewind if io.kind_of?(StringIO)
-      else raise 'Ivalid combinations of parameter types in save'
+    if io.kind_of?(IO) || io.kind_of?(StringIO)
+      Tools.output_to_zip_stream(io) { |output_io| write_ods_to_io(output_io) }
+      io.rewind if io.kind_of?(StringIO)
+      return io
     end
+
+    target = io.kind_of?(File) ? io.path : io
+    target ||= @filename
+    raise 'New file should be named on first save.' if target.nil?
+    raise 'Invalid output filename' unless target.kind_of?(String)
+
+    destination = File.expand_path(target)
+    temporary = Tempfile.new(['rspreadsheet', '.ods'], File.dirname(destination))
+    temporary_path = temporary.path
+    temporary.close!
+    begin
+      Tools.output_to_zip_stream(temporary_path, create: true) do |output_zip|
+        write_ods_to_io(output_zip)
+      end
+      FileUtils.mv(temporary_path, destination)
+      @filename = destination
+    ensure
+      FileUtils.rm_f(temporary_path)
+    end
+
+    self
   end
   alias :save_to_io  :save
   alias :save_as :save
